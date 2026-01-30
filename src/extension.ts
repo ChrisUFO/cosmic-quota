@@ -671,7 +671,7 @@ class QuotaMonitor {
                 const projectedText = analytics.projectedRemainingAtReset < 10 
                     ? `${analytics.projectedRemainingAtReset.toFixed(1)}% (low!)`
                     : `${analytics.projectedRemainingAtReset.toFixed(1)}%`;
-                analyticsSection += `\n- **📈 Projected at reset:** ${projectedText}`;
+                analyticsSection += `\n- **📈 Projected remaining at reset:** ${projectedText}`;
             }
             
             analyticsSection += '\n';
