@@ -2,7 +2,7 @@
   "name": "cosmic-quota",
   "displayName": "Cosmic Quota",
   "description": "An otherworldly VS Code: extension that monitors your Synthetic API quota from the far reaches of space",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "ChrisUFO",
   "license": "MIT",
   "author": "ChrisUFO <chris@charrison.us>",
@@ -47,7 +47,7 @@
           "default": 300,
           "minimum": 60,
           "maximum": 3600,
-          "description": "Refresh interval in seconds (default: 5 minutes, min: 60s, max: 1 hour)"
+          "description": "How often to refresh quota data (in seconds). Default: 5 minutes (300s), Min: 1 minute (60s), Max: 1 hour (3600s)"
         },
         "syntheticQuota.statusBarDisplay": {
           "type": "string",
@@ -66,41 +66,7 @@
             "Show all quotas abbreviated (S:/T:/H:)",
             "Show average of all quotas"
           ],
-          "description": "What to display in the status bar"
-        },
-        "syntheticQuota.statusBarCountdown": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show countdown to reset in status bar when quota reaches 0%"
-        },
-        "syntheticQuota.trackSessionUsage": {
-          "type": "boolean",
-          "default": true,
-          "description": "Track session usage (quota used since VS Code: window opened)"
-        },
-        "syntheticQuota.showCompactAnalytics": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show predictive analytics in status bar (trends, burn rate, depletion time)"
-        },
-        "syntheticQuota.compactAnalytics": {
-          "type": "string",
-          "default": "auto",
-          "enum": [
-            "auto",
-            "trend",
-            "depletion",
-            "burn",
-            "off"
-          ],
-          "enumDescriptions": [
-            "Automatically choose based on quota state (trend when elevated, depletion when critical)",
-            "Always show trend indicator (up/down/stable arrows)",
-            "Always show depletion time ('2h left')",
-            "Always show burn rate ('5.2%/h')",
-            "Disable compact analytics in status bar"
-          ],
-          "description": "What type of predictive analytics to show in the status bar"
+          "description": "What quota information to display in the status bar"
         },
         "syntheticQuota.resetTimeDisplay": {
           "type": "string",
@@ -117,26 +83,60 @@
           ],
           "description": "How to display the quota reset time in tooltips"
         },
+        "syntheticQuota.statusBarCountdown": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show countdown to reset in status bar when quota is depleted (100% used)"
+        },
+        "syntheticQuota.showCompactAnalytics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show predictive analytics in the status bar (trends, burn rate, depletion forecast)"
+        },
+        "syntheticQuota.compactAnalytics": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "trend",
+            "depletion",
+            "burn",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Auto: Show depletion when critical (90%+), trend when elevated (70%+), burn rate when moderate (50%+)",
+            "Always show trend indicator (up/down/stable arrows)",
+            "Always show depletion time remaining (e.g., '2h left')",
+            "Always show burn rate (e.g., '5.2%/h')",
+            "Disable compact analytics in status bar"
+          ],
+          "description": "What type of predictive analytics to display in the status bar"
+        },
+        "syntheticQuota.trackSessionUsage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Track and display session usage (quota consumed since this VS Code: window opened)"
+        },
         "syntheticQuota.warningThreshold": {
           "type": "number",
           "default": 70,
           "minimum": 0,
           "maximum": 100,
-          "description": "Usage percentage that triggers warning status (orange)"
+          "description": "Usage percentage that triggers warning status (orange icon)"
         },
         "syntheticQuota.criticalThreshold": {
           "type": "number",
           "default": 90,
           "minimum": 0,
           "maximum": 100,
-          "description": "Usage percentage that triggers critical status (red)"
+          "description": "Usage percentage that triggers critical status (red icon)"
         },
         "syntheticQuota.lowQuotaNotificationThreshold": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "maximum": 100,
-          "description": "Percentage threshold to show a notification when remaining quota drops below this value. Set to 0 to disable notifications."
+          "description": "Show a notification when remaining quota drops below this percentage. Set to 0 to disable notifications."
         }
       }
     },
