@@ -14,7 +14,7 @@ interface QuotaData {
             renewsAt: string;
         };
     };
-    toolCalls: {
+    toolCallDiscounts: {
         limit: number;
         requests: number;
         renewsAt: string;
@@ -182,7 +182,7 @@ class QuotaMonitor {
 
         const now = Date.now();
         const subscriptionPercent = data.subscription.requests / data.subscription.limit;
-        const toolCallsPercent = data.toolCalls.requests / data.toolCalls.limit;
+        const toolCallsPercent = data.toolCallDiscounts.requests / data.toolCallDiscounts.limit;
         const searchPercent = data.search.hourly.requests / data.search.hourly.limit;
 
         this.sessionTracker = {
@@ -279,7 +279,7 @@ class QuotaMonitor {
         }
 
         const currentSubPercent = data.subscription.requests / data.subscription.limit;
-        const currentToolPercent = data.toolCalls.requests / data.toolCalls.limit;
+        const currentToolPercent = data.toolCallDiscounts.requests / data.toolCallDiscounts.limit;
         const currentSearchPercent = data.search.hourly.requests / data.search.hourly.limit;
 
         return {
@@ -528,7 +528,7 @@ class QuotaMonitor {
                 this.updateStatusBarForQuota('subscription', this.quotaData.subscription, sessionUsage.subscription, analytics);
                 break;
             case 'toolCalls':
-                this.updateStatusBarForQuota('toolCalls', this.quotaData.toolCalls, sessionUsage.toolCalls);
+                this.updateStatusBarForQuota('toolCalls', this.quotaData.toolCallDiscounts, sessionUsage.toolCalls);
                 break;
             case 'search':
                 this.updateStatusBarForQuota('search', this.quotaData.search.hourly, sessionUsage.search);
@@ -577,7 +577,7 @@ class QuotaMonitor {
 
     private updateStatusBarAll(analytics?: QuotaAnalytics): void {
         const sub = this.quotaData!.subscription;
-        const tool = this.quotaData!.toolCalls;
+        const tool = this.quotaData!.toolCallDiscounts;
         const search = this.quotaData!.search.hourly;
 
         const subPercent = (sub.requests / sub.limit) * 100;
@@ -603,7 +603,7 @@ class QuotaMonitor {
 
     private updateStatusBarAverage(sessionUsage: { subscription: number; toolCalls: number; search: number }, analytics?: QuotaAnalytics): void {
         const sub = this.quotaData!.subscription;
-        const tool = this.quotaData!.toolCalls;
+        const tool = this.quotaData!.toolCallDiscounts;
         const search = this.quotaData!.search.hourly;
 
         const subPercent = (sub.requests / sub.limit) * 100;
@@ -691,7 +691,7 @@ class QuotaMonitor {
 
     private buildFullTooltip(analytics?: QuotaAnalytics): vscode.MarkdownString {
         const sub = this.quotaData!.subscription;
-        const tool = this.quotaData!.toolCalls;
+        const tool = this.quotaData!.toolCallDiscounts;
         const search = this.quotaData!.search.hourly;
 
         let analyticsSection = '';
@@ -819,11 +819,11 @@ class QuotaMonitor {
             return false;
         }
 
-        // Check toolCalls
-        if (!d.toolCalls || typeof d.toolCalls !== 'object') {
+        // Check toolCallDiscounts
+        if (!d.toolCallDiscounts || typeof d.toolCallDiscounts !== 'object') {
             return false;
         }
-        const tool = d.toolCalls as Record<string, unknown>;
+        const tool = d.toolCallDiscounts as Record<string, unknown>;
         if (typeof tool.limit !== 'number' || typeof tool.requests !== 'number' || typeof tool.renewsAt !== 'string') {
             return false;
         }
@@ -913,7 +913,7 @@ class QuotaMonitor {
 
     private getDetailsHtml(data: QuotaData): string {
         const subscription = data.subscription;
-        const toolCalls = data.toolCalls;
+        const toolCalls = data.toolCallDiscounts;
         const search = data.search.hourly;
 
         const thresholds = this.getColorThresholds();
