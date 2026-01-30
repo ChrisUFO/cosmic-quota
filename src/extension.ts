@@ -253,10 +253,14 @@ class QuotaMonitor {
         // Use session burn rate if available and reliable, otherwise fall back to cycle average
         let burnRatePerHour = sessionBurnRatePerHour !== 0 ? sessionBurnRatePerHour : averageBurnRatePerHour;
         
-        // Calculate hours until depletion
+        // Calculate hours until depletion (only if it happens before reset)
         let hoursUntilDepletion: number | null = null;
-        if (burnRatePerHour > 0 && remainingPercent > 0) {
-            hoursUntilDepletion = remainingPercent / burnRatePerHour;
+        if (burnRatePerHour > 0 && remainingPercent > 0 && hoursUntilReset > 0) {
+            const calculatedDepletion = remainingPercent / burnRatePerHour;
+            // Only show depletion if it happens before the quota resets
+            if (calculatedDepletion < hoursUntilReset) {
+                hoursUntilDepletion = calculatedDepletion;
+            }
         }
         
         // Project remaining at reset using cycle average rate
