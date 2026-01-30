@@ -2,7 +2,7 @@
   "name": "cosmic-quota",
   "displayName": "Cosmic Quota",
   "description": "An otherworldly VS Code: extension that monitors your Synthetic API quota from the far reaches of space",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "publisher": "ChrisUFO",
   "license": "MIT",
   "author": "ChrisUFO <chris@charrison.us>",
