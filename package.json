@@ -1,6 +1,6 @@
 {
   "name": "cosmic-quota",
-  "displayName": "=} Cosmic Quota",
+  "displayName": "Cosmic Quota",
   "description": "An otherworldly VS Code: extension that monitors your Synthetic API quota from the far reaches of space",
   "version": "0.2.0",
   "publisher": "ChrisUFO",
@@ -95,7 +95,7 @@
           ],
           "enumDescriptions": [
             "Automatically choose based on quota state (trend when elevated, depletion when critical)",
-            "Always show trend indicator (=È=É¡)",
+            "Always show trend indicator (up/down/stable arrows)",
             "Always show depletion time ('2h left')",
             "Always show burn rate ('5.2%/h')",
             "Disable compact analytics in status bar"
@@ -122,7 +122,7 @@
           "default": 70,
           "minimum": 0,
           "maximum": 100,
-          "description": "Usage percentage that triggers warning status (yellow)"
+          "description": "Usage percentage that triggers warning status (orange)"
         },
         "syntheticQuota.criticalThreshold": {
           "type": "number",
