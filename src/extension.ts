@@ -769,6 +769,13 @@ class QuotaMonitor {
                     if (res.statusCode === 200) {
                         try {
                             const parsed = JSON.parse(data);
+                            
+                            // Validate the response structure
+                            if (!this.isValidQuotaData(parsed)) {
+                                reject(new Error('Invalid API response structure'));
+                                return;
+                            }
+                            
                             resolve(parsed);
                         } catch (e) {
                             reject(new Error('Failed to parse API response'));
@@ -794,6 +801,47 @@ class QuotaMonitor {
 
             req.end();
         });
+    }
+
+    private isValidQuotaData(data: unknown): data is QuotaData {
+        if (typeof data !== 'object' || data === null) {
+            return false;
+        }
+
+        const d = data as Record<string, unknown>;
+
+        // Check subscription
+        if (!d.subscription || typeof d.subscription !== 'object') {
+            return false;
+        }
+        const sub = d.subscription as Record<string, unknown>;
+        if (typeof sub.limit !== 'number' || typeof sub.requests !== 'number' || typeof sub.renewsAt !== 'string') {
+            return false;
+        }
+
+        // Check toolCalls
+        if (!d.toolCalls || typeof d.toolCalls !== 'object') {
+            return false;
+        }
+        const tool = d.toolCalls as Record<string, unknown>;
+        if (typeof tool.limit !== 'number' || typeof tool.requests !== 'number' || typeof tool.renewsAt !== 'string') {
+            return false;
+        }
+
+        // Check search
+        if (!d.search || typeof d.search !== 'object') {
+            return false;
+        }
+        const search = d.search as Record<string, unknown>;
+        if (!search.hourly || typeof search.hourly !== 'object') {
+            return false;
+        }
+        const hourly = search.hourly as Record<string, unknown>;
+        if (typeof hourly.limit !== 'number' || typeof hourly.requests !== 'number' || typeof hourly.renewsAt !== 'string') {
+            return false;
+        }
+
+        return true;
     }
 
     public async showDetails(): Promise<void> {
