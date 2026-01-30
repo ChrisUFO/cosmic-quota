@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ec9b0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d7377;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="planetGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#5eead4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4ec9b0;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="url(#bgGradient)" stroke="#4ec9b0" stroke-width="2"/>
+  
+  <!-- Orbit rings representing quota levels -->
+  <ellipse cx="64" cy="64" rx="45" ry="20" fill="none" stroke="url(#ringGradient)" stroke-width="2" opacity="0.6" transform="rotate(-45 64 64)"/>
+  <ellipse cx="64" cy="64" rx="35" ry="15" fill="none" stroke="url(#ringGradient)" stroke-width="2" opacity="0.8" transform="rotate(-45 64 64)"/>
+  
+  <!-- Planet body -->
+  <circle cx="64" cy="64" r="20" fill="url(#planetGradient)" filter="url(#glow)"/>
+  
+  <!-- Eye (alien watching quota) -->
+  <ellipse cx="64" cy="58" rx="8" ry="6" fill="#1a1a2e"/>
+  <circle cx="64" cy="58" r="3" fill="#4ec9b0"/>
+  
+  <!-- Progress arc showing quota usage -->
+  <path d="M 64 30 A 34 34 0 0 1 85 40" fill="none" stroke="#ff6b6b" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  <path d="M 85 40 A 34 34 0 0 1 98 64" fill="none" stroke="#ffd93d" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  
+  <!-- Stars in background -->
+  <circle cx="25" cy="35" r="1.5" fill="white" opacity="0.8"/>
+  <circle cx="95" cy="25" r="1" fill="white" opacity="0.6"/>
+  <circle cx="105" cy="75" r="1.5" fill="white" opacity="0.7"/>
+  <circle cx="30" cy="95" r="1" fill="white" opacity="0.5"/>
+  <circle cx="15" cy="60" r="1" fill="white" opacity="0.6"/>
+  
+  <!-- Small satellite/moon representing tool calls -->
+  <circle cx="95" cy="50" r="6" fill="#5eead4" opacity="0.9"/>
+  <circle cx="95" cy="50" r="2" fill="#1a1a2e"/>
+</svg>

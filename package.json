@@ -32,6 +32,7 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "icon": "icon.svg",
   "contributes": {
     "configuration": {
       "title": "Cosmic Quota",
