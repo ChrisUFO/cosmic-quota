@@ -216,12 +216,20 @@ class QuotaMonitor {
         const timeUntilReset = Math.max(0, resetTime - now);
         const hoursUntilReset = timeUntilReset / MS_PER_HOUR;
         
-        // Calculate how much time has passed since the cycle started (assuming 24h cycle)
-        const totalCycleHours = 24;
-        const hoursElapsedInCycle = Math.max(0, totalCycleHours - hoursUntilReset);
+        // Infer cycle length from the reset time (round to nearest common cycle: 1h, 5h, 24h)
+        // Most quotas reset on predictable schedules (hourly, every 5 hours, daily, etc.)
+        let cycleHours = 24; // default
+        if (hoursUntilReset <= 1.5) {
+            cycleHours = 1; // hourly quota
+        } else if (hoursUntilReset <= 6) {
+            cycleHours = 5; // 5-hour quota
+        } else if (hoursUntilReset <= 26) {
+            cycleHours = 24; // daily quota
+        }
+        
+        const hoursElapsedInCycle = Math.max(0, cycleHours - hoursUntilReset);
         
         // Calculate average burn rate since cycle start
-        // If we have 10% used and 2 hours have passed in the cycle, average is 5%/hour
         let averageBurnRatePerHour = 0;
         if (hoursElapsedInCycle > 0.1) {
             averageBurnRatePerHour = usedPercent / hoursElapsedInCycle;
@@ -264,10 +272,9 @@ class QuotaMonitor {
         }
         
         // Project remaining at reset using cycle average rate
-        // This gives a more realistic prediction based on overall usage pattern
         let projectedRemainingAtReset: number | null = null;
         if (hoursUntilReset > 0 && averageBurnRatePerHour > 0) {
-            const projectedTotalUsage = averageBurnRatePerHour * totalCycleHours;
+            const projectedTotalUsage = averageBurnRatePerHour * cycleHours;
             projectedRemainingAtReset = Math.max(0, 100 - projectedTotalUsage);
         }
         
