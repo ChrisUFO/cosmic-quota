@@ -43,8 +43,7 @@ interface QuotaAnalytics {
     burnRatePerHour: number;
     hoursUntilDepletion: number | null;
     trend: 'up' | 'down' | 'stable';
-    efficiency: number; // % of quota used vs % of time elapsed
-    projectedRemainingAtReset: number | null; // How much quota will be left at reset time
+    projectedRemainingAtReset: number | null;
 }
 
 const CONFIG_NAMESPACE = 'syntheticQuota';
@@ -201,7 +200,6 @@ class QuotaMonitor {
         const now = Date.now();
         const subscriptionPercent = data.subscription.requests / data.subscription.limit;
         
-        // Keep last 10 data points for trend analysis (sliding window)
         this.sessionTracker.history.push({ timestamp: now, subscriptionUsed: subscriptionPercent });
         if (this.sessionTracker.history.length > 10) {
             this.sessionTracker.history.shift();
@@ -214,27 +212,35 @@ class QuotaMonitor {
         const usedPercent = (subscription.requests / subscription.limit) * 100;
         const remainingPercent = 100 - usedPercent;
         
-        // Calculate time until reset
         const resetTime = new Date(subscription.renewsAt).getTime();
         const timeUntilReset = Math.max(0, resetTime - now);
         const hoursUntilReset = timeUntilReset / MS_PER_HOUR;
         
-        // Calculate burn rate from session history using rolling window average
-        let burnRatePerHour = 0;
+        // Calculate how much time has passed since the cycle started (assuming 24h cycle)
+        const totalCycleHours = 24;
+        const hoursElapsedInCycle = Math.max(0, totalCycleHours - hoursUntilReset);
+        
+        // Calculate average burn rate since cycle start
+        // If we have 10% used and 2 hours have passed in the cycle, average is 5%/hour
+        let averageBurnRatePerHour = 0;
+        if (hoursElapsedInCycle > 0.1) {
+            averageBurnRatePerHour = usedPercent / hoursElapsedInCycle;
+        }
+        
+        // Calculate session burn rate for trend analysis
+        let sessionBurnRatePerHour = 0;
         let trend: 'up' | 'down' | 'stable' = 'stable';
         
         if (this.sessionTracker && this.sessionTracker.history.length >= 2) {
             const history = this.sessionTracker.history;
             const first = history[0];
             const last = history[history.length - 1];
-            const hoursElapsed = (last.timestamp - first.timestamp) / MS_PER_HOUR;
+            const sessionHoursElapsed = (last.timestamp - first.timestamp) / MS_PER_HOUR;
             
-            if (hoursElapsed > 0) {
-                // Calculate overall burn rate from the entire history window
-                const usageChange = (last.subscriptionUsed - first.subscriptionUsed) * 100; // in percentage points
-                burnRatePerHour = usageChange / hoursElapsed;
+            if (sessionHoursElapsed > 0) {
+                const usageChange = (last.subscriptionUsed - first.subscriptionUsed) * 100;
+                sessionBurnRatePerHour = usageChange / sessionHoursElapsed;
                 
-                // Determine trend using recent data points (last 3 readings)
                 if (history.length >= 3) {
                     const recent = history.slice(-3);
                     const avgChange = ((recent[2].subscriptionUsed - recent[0].subscriptionUsed) * 100) / 2;
@@ -244,29 +250,24 @@ class QuotaMonitor {
             }
         }
         
-        // Calculate hours until depletion based on current burn rate
+        // Use session burn rate if available and reliable, otherwise fall back to cycle average
+        let burnRatePerHour = sessionBurnRatePerHour !== 0 ? sessionBurnRatePerHour : averageBurnRatePerHour;
+        
+        // Calculate hours until depletion
         let hoursUntilDepletion: number | null = null;
         if (burnRatePerHour > 0 && remainingPercent > 0) {
             hoursUntilDepletion = remainingPercent / burnRatePerHour;
         }
         
-        // Calculate efficiency (are we using quota proportionally to time elapsed?)
-        // If 12 hours have passed in a 24h cycle, we should have used ~50% for 100% efficiency
-        const expectedUsagePercent = hoursUntilReset > 0 
-            ? ((24 - hoursUntilReset) / 24) * 100 
-            : 0;
-        const efficiency = expectedUsagePercent > 0 
-            ? (usedPercent / expectedUsagePercent) * 100 
-            : 100;
-        
-        // Project remaining quota at reset time
+        // Project remaining at reset using cycle average rate
+        // This gives a more realistic prediction based on overall usage pattern
         let projectedRemainingAtReset: number | null = null;
-        if (hoursUntilReset > 0) {
-            const projectedUsageAtReset = usedPercent + (burnRatePerHour * hoursUntilReset);
-            projectedRemainingAtReset = Math.max(0, 100 - projectedUsageAtReset);
+        if (hoursUntilReset > 0 && averageBurnRatePerHour > 0) {
+            const projectedTotalUsage = averageBurnRatePerHour * totalCycleHours;
+            projectedRemainingAtReset = Math.max(0, 100 - projectedTotalUsage);
         }
         
-        return { burnRatePerHour, hoursUntilDepletion, trend, efficiency, projectedRemainingAtReset };
+        return { burnRatePerHour, hoursUntilDepletion, trend, projectedRemainingAtReset };
     }
 
     private getSessionUsage(data: QuotaData): { subscription: number; toolCalls: number; search: number } {
@@ -310,17 +311,13 @@ class QuotaMonitor {
             return '';
         }
 
-        // Auto mode: intelligently choose what to display based on quota state
         if (mode === 'auto') {
-            // Critical (90%+): show depletion time - most urgent info
             if (usedPercent >= 90 && analytics.hoursUntilDepletion !== null && analytics.hoursUntilDepletion < 24) {
                 return ` • ${this.formatCompactDepletion(analytics.hoursUntilDepletion)} left`;
             }
-            // Warning (70%+): show trend when usage is changing
             if (usedPercent >= 70 && analytics.trend !== 'stable') {
                 return ` ${this.getTrendIcon(analytics.trend)}`;
             }
-            // Moderate (50%+): show burn rate if significant
             if (usedPercent >= 50 && Math.abs(analytics.burnRatePerHour) > 3) {
                 const direction = analytics.burnRatePerHour > 0 ? '🔥' : '💚';
                 return ` ${direction}`;
@@ -517,7 +514,6 @@ class QuotaMonitor {
             return;
         }
 
-        // Update session history for trend analysis
         this.updateSessionHistory(this.quotaData);
 
         const displayMode = this.getStatusBarDisplayMode();
@@ -561,7 +557,6 @@ class QuotaMonitor {
             text += ` (-${sessionUsed}%)`;
         }
 
-        // Add predictive analytics for subscription quota
         if (name === 'subscription' && analytics) {
             text += this.getCompactAnalyticsText(analytics, usedPercent);
         }
@@ -590,7 +585,6 @@ class QuotaMonitor {
 
         let text = `$(dashboard) S:${subPercent.toFixed(0)}% T:${toolPercent.toFixed(0)}% H:${searchPercent.toFixed(0)}%`;
         
-        // Add compact trend indicator for subscription in all mode
         if (analytics && this.shouldShowCompactAnalytics()) {
             const mode = this.getCompactAnalyticsMode();
             if ((mode === 'trend' || mode === 'auto') && analytics.trend !== 'stable') {
@@ -624,7 +618,6 @@ class QuotaMonitor {
             text += ` (-${avgSession}%)`;
         }
 
-        // Add analytics indicator
         if (analytics && this.shouldShowCompactAnalytics()) {
             const mode = this.getCompactAnalyticsMode();
             if ((mode === 'trend' || mode === 'auto') && analytics.trend !== 'stable') {
@@ -653,14 +646,10 @@ class QuotaMonitor {
         let analyticsSection = '';
         if (name === 'subscription' && analytics) {
             const trendIcon = this.getTrendIcon(analytics.trend);
-            const efficiencyText = analytics.efficiency > 100 
-                ? `${analytics.efficiency.toFixed(0)}% (above expected)` 
-                : `${analytics.efficiency.toFixed(0)}% (on track)`;
             
             analyticsSection = `
 ### 📊 Session Analytics
-- **Trend:** ${trendIcon} ${analytics.trend}
-- **Efficiency:** ${efficiencyText}`;
+- **Trend:** ${trendIcon} ${analytics.trend}`;
             
             if (Math.abs(analytics.burnRatePerHour) > 0.01) {
                 const burnEmoji = analytics.burnRatePerHour > 0 ? '🔥' : '💚';
@@ -676,7 +665,10 @@ class QuotaMonitor {
             }
             
             if (analytics.projectedRemainingAtReset !== null) {
-                analyticsSection += `\n- **📈 Projected at reset:** ${analytics.projectedRemainingAtReset.toFixed(1)}% remaining`;
+                const projectedText = analytics.projectedRemainingAtReset < 10 
+                    ? `${analytics.projectedRemainingAtReset.toFixed(1)}% (low!)`
+                    : `${analytics.projectedRemainingAtReset.toFixed(1)}%`;
+                analyticsSection += `\n- **📈 Projected at reset:** ${projectedText}`;
             }
             
             analyticsSection += '\n';
@@ -702,15 +694,11 @@ class QuotaMonitor {
         let analyticsSection = '';
         if (analytics) {
             const trendIcon = this.getTrendIcon(analytics.trend);
-            const efficiencyText = analytics.efficiency > 100 
-                ? `${analytics.efficiency.toFixed(0)}% (using more than expected)` 
-                : `${analytics.efficiency.toFixed(0)}% (on track)`;
             
             analyticsSection = `
 
 ### 📊 Session Analytics
-- **Trend:** ${trendIcon} ${analytics.trend}
-- **Efficiency:** ${efficiencyText}`;
+- **Trend:** ${trendIcon} ${analytics.trend}`;
             
             if (Math.abs(analytics.burnRatePerHour) > 0.01) {
                 const burnEmoji = analytics.burnRatePerHour > 0 ? '🔥' : '💚';
@@ -856,7 +844,6 @@ class QuotaMonitor {
 
         panel.webview.html = this.getDetailsHtml(this.quotaData);
 
-        // Message handler for refresh button
         panel.webview.onDidReceiveMessage(
             async (message) => {
                 switch (message.command) {
@@ -908,8 +895,6 @@ class QuotaMonitor {
         };
 
         const trendIcon = this.getTrendIcon(analytics.trend);
-        const efficiencyColor = analytics.efficiency > 100 ? '#FF6B6B' : '#4EC9B0';
-        const efficiencyText = analytics.efficiency > 100 ? 'Above expected' : 'On track';
         
         let depletionHtml = '';
         if (analytics.hoursUntilDepletion !== null && analytics.hoursUntilDepletion > 0) {
@@ -927,10 +912,11 @@ class QuotaMonitor {
         let projectedHtml = '';
         if (analytics.projectedRemainingAtReset !== null) {
             const projectedClass = analytics.projectedRemainingAtReset < 10 ? 'warning' : '';
+            const projectedLabel = analytics.projectedRemainingAtReset < 10 ? '(low!)' : '';
             projectedHtml = `
                 <div class="analytics-row">
                     <span class="analytics-label">📈 Projected at reset:</span>
-                    <span class="analytics-value ${projectedClass}">${analytics.projectedRemainingAtReset.toFixed(1)}%</span>
+                    <span class="analytics-value ${projectedClass}">${analytics.projectedRemainingAtReset.toFixed(1)}% ${projectedLabel}</span>
                 </div>
             `;
         }
@@ -1092,10 +1078,6 @@ class QuotaMonitor {
         .trend-indicator {
             font-size: 20px;
         }
-        .efficiency-indicator {
-            font-size: 16px;
-            font-weight: 600;
-        }
     </style>
 </head>
 <body>
@@ -1111,10 +1093,6 @@ class QuotaMonitor {
                 <span class="analytics-label">Current Trend:</span>
                 <span class="analytics-value">${analytics.trend}</span>
             </div>
-            <div class="analytics-row">
-                <span class="analytics-label">Efficiency Score:</span>
-                <span class="analytics-value" style="color: ${efficiencyColor};">${analytics.efficiency.toFixed(0)}% (${efficiencyText})</span>
-            </div>
             ${Math.abs(analytics.burnRatePerHour) > 0.01 ? `
             <div class="analytics-row">
                 <span class="analytics-label">Burn Rate:</span>
@@ -1127,7 +1105,7 @@ class QuotaMonitor {
             ${projectedHtml}
         </div>
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--vscode-panel-border); font-size: 11px; opacity: 0.7;">
-            💡 Predictions based on your current session's usage pattern (up to last 10 data points)
+            💡 Projections based on your current usage rate since cycle started (24h window)
         </div>
     </div>
 
