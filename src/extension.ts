@@ -216,16 +216,8 @@ class QuotaMonitor {
         const timeUntilReset = Math.max(0, resetTime - now);
         const hoursUntilReset = timeUntilReset / MS_PER_HOUR;
         
-        // Infer cycle length from the reset time (round to nearest common cycle: 1h, 5h, 24h)
-        // Most quotas reset on predictable schedules (hourly, every 5 hours, daily, etc.)
-        let cycleHours = 24; // default
-        if (hoursUntilReset <= 1.5) {
-            cycleHours = 1; // hourly quota
-        } else if (hoursUntilReset <= 6) {
-            cycleHours = 5; // 5-hour quota
-        } else if (hoursUntilReset <= 26) {
-            cycleHours = 24; // daily quota
-        }
+        // Synthetic API has a 5-hour reset cycle
+        const cycleHours = 5;
         
         const hoursElapsedInCycle = Math.max(0, cycleHours - hoursUntilReset);
         
@@ -1116,7 +1108,7 @@ class QuotaMonitor {
             ${projectedHtml}
         </div>
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--vscode-panel-border); font-size: 11px; opacity: 0.7;">
-            💡 Projections based on your current usage rate since cycle started (24h window)
+            💡 Projections based on your current usage rate since cycle started (5h window)
         </div>
     </div>
 
