@@ -2,16 +2,16 @@
   "name": "cosmic-quota",
   "displayName": "=} Cosmic Quota",
   "description": "An otherworldly VS Code: extension that monitors your Synthetic API quota from the far reaches of space",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "ChrisUFO",
   "license": "MIT",
   "author": "ChrisUFO <chris@charrison.us>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/synthetic-quota-vscode"
+    "url": "https://github.com/ChrisUFO/cosmic-quota"
   },
   "bugs": {
-    "url": "https://github.com/your-org/synthetic-quota-vscode/issues"
+    "url": "https://github.com/ChrisUFO/cosmic-quota/issues"
   },
   "keywords": [
     "synthetic",
@@ -34,7 +34,7 @@
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
-      "title": "Synthetic Quota",
+      "title": "Cosmic Quota",
       "properties": {
         "syntheticQuota.apiKey": {
           "type": "string",
@@ -78,6 +78,30 @@
           "default": true,
           "description": "Track session usage (quota used since VS Code: window opened)"
         },
+        "syntheticQuota.showCompactAnalytics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show predictive analytics in status bar (trends, burn rate, depletion time)"
+        },
+        "syntheticQuota.compactAnalytics": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "trend",
+            "depletion",
+            "burn",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Automatically choose based on quota state (trend when elevated, depletion when critical)",
+            "Always show trend indicator (=È=É¡)",
+            "Always show depletion time ('2h left')",
+            "Always show burn rate ('5.2%/h')",
+            "Disable compact analytics in status bar"
+          ],
+          "description": "What type of predictive analytics to show in the status bar"
+        },
         "syntheticQuota.resetTimeDisplay": {
           "type": "string",
           "default": "relative",
@@ -119,14 +143,14 @@
     "commands": [
       {
         "command": "syntheticQuota.refresh",
-        "title": "Refresh Synthetic Quota",
-        "category": "Synthetic Quota",
+        "title": "Refresh Quota",
+        "category": "Cosmic Quota",
         "icon": "$(refresh)"
       },
       {
         "command": "syntheticQuota.showDetails",
         "title": "Show Quota Details",
-        "category": "Synthetic Quota"
+        "category": "Cosmic Quota"
       }
     ]
   },

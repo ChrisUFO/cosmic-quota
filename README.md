@@ -4,8 +4,9 @@
 
 An otherworldly VS Code: extension that monitors your Synthetic API quota directly from the cosmic void. Stay informed about your interstellar resource levels before your energy cells deplete.
 
-## 🛸 Alien Features
+## 🛸 Features
 
+### Core Monitoring
 - **Real-time Status Bar Display** - Monitor quota usage directly in VS Code:
 - **Multiple Display Modes** - Choose what to show in the status bar:
   - Subscription quota (default)
@@ -24,10 +25,25 @@ An otherworldly VS Code: extension that monitors your Synthetic API quota direct
 - **Flexible Time Formats** - Display reset times as relative, absolute, or both
 - **Detailed Webview** - Click the status bar for a comprehensive breakdown of all quotas
 
+### 🔮 Predictive Analytics (v0.2.0)
+Cosmic Quota now predicts your future quota usage based on your current session patterns:
+
+- **Trend Analysis** - Visual indicators show if your usage is 📈 increasing, 📉 decreasing, or ➡️ stable
+- **Depletion Forecasting** - Predicts when you'll run out of quota based on current burn rate ("2h left")
+- **Efficiency Score** - Compares your usage vs. time elapsed in the billing cycle
+- **Projected Remaining** - Shows how much quota you'll have left at reset time
+- **Burn Rate** - Real-time consumption rate in %/hour
+
+**How it works:** The extension maintains a rolling window of up to 10 data points from your current session. It calculates:
+- **Burn Rate**: `(currentUsage - initialUsage) / hoursElapsed`
+- **Trend**: Based on recent 3 data points
+- **Depletion**: `remainingQuota / burnRate`
+- **Efficiency**: `actualUsage% / expectedUsage%` (based on time in cycle)
+
 ## Installation
 
 1. Install from the VS Code: Marketplace (coming soon)
-2. Or install from VSIX: Download the latest release and run `code --install-extension synthetic-quota-1.1.0.vsix`
+2. Or install from VSIX: Download the latest release and run `code --install-extension cosmic-quota-0.2.0.vsix`
 
 ## Setup
 
@@ -45,14 +61,27 @@ An otherworldly VS Code: extension that monitors your Synthetic API quota direct
 | `syntheticQuota.statusBarDisplay` | `'subscription'` | What to display in status bar |
 | `syntheticQuota.statusBarCountdown` | `true` | Show countdown when quota is 0% |
 | `syntheticQuota.trackSessionUsage` | `true` | Track usage since VS Code: opened |
+| `syntheticQuota.showCompactAnalytics` | `true` | Show predictive analytics in status bar |
+| `syntheticQuota.compactAnalytics` | `'auto'` | Analytics mode: auto, trend, depletion, burn, off |
 | `syntheticQuota.resetTimeDisplay` | `'relative'` | Time format: relative, absolute, or both |
 | `syntheticQuota.warningThreshold` | `70` | Usage % for warning (yellow) status |
 | `syntheticQuota.criticalThreshold` | `90` | Usage % for critical (red) status |
 | `syntheticQuota.lowQuotaNotificationThreshold` | `0` | Notify when remaining % drops below this (0 to disable) |
 
+### Analytics Modes
+
+- **auto** (default): Intelligently switches based on quota state:
+  - Critical (90%+): Shows depletion time
+  - Warning (70%+): Shows trend arrows
+  - Moderate (50%+): Shows burn indicators
+- **trend**: Always shows trend indicator (📈📉➡️)
+- **depletion**: Always shows time until depletion ("2h left")
+- **burn**: Always shows burn rate ("5.2%/h")
+- **off**: Disables compact analytics in status bar
+
 ## Commands
 
-- **Refresh Synthetic Quota** (`syntheticQuota.refresh`) - Manually refresh quota data
+- **Refresh Quota** (`syntheticQuota.refresh`) - Manually refresh quota data
 - **Show Quota Details** (`syntheticQuota.showDetails`) - Open detailed webview panel
 
 Click the status bar item at any time to open the detailed quota view.
@@ -63,17 +92,17 @@ Click the status bar item at any time to open the detailed quota view.
 |---------|-------------|
 | `$(check) 45%` | Healthy subscription usage |
 | `$(warning) 75% (-5%)` | Warning level with 5% session consumption |
+| `$(warning) 92% • 2h left` | Critical with depletion forecast |
+| `$(info) 65% 📈` | Moderate with increasing trend |
 | `$(error) ~45m` | Depleted quota, 45 minutes until reset |
-| `$(dashboard) S:45% T:30% H:80%` | All quotas displayed |
+| `$(dashboard) S:45% T:30% H:80% 📈` | All quotas with trend indicator |
 
 ## Requirements
 
 - VS Code: 1.74.0 or higher
 - A valid Synthetic API key
 
-## Extension Settings Reference
-
-### Display Modes
+## Display Modes
 
 - **subscription**: Shows subscription quota with icon and percentage
 - **toolCalls**: Shows tool calls quota usage
@@ -81,7 +110,7 @@ Click the status bar item at any time to open the detailed quota view.
 - **all**: Abbreviated view showing all three quotas
 - **average**: Average percentage across all quota types
 
-### Time Display Modes
+## Time Display Modes
 
 - **relative**: "in 2h 13m"
 - **absolute**: "resets at 14:07"
@@ -107,26 +136,28 @@ Click the status bar item at any time to open the detailed quota view.
 
 - Session tracking resets when VS Code: window reloads
 - Notifications appear once per threshold crossing until quota recovers
+- Predictive analytics require at least 2 data points (a few minutes of session time)
 
 ## Release Notes
 
-### 1.1.0
+### 0.2.0
 
-- Added configurable status bar display modes (subscription, toolCalls, search, all, average)
-- Added notification alerts for low quota thresholds
-- Added configurable time display formats (relative, absolute, both)
-- Added configurable color thresholds for status indicators
-- Added session usage tracking with visual indicators
-- Added countdown display when quota reaches 0%
-- Fixed webview refresh button functionality
-- Added comprehensive documentation
+- **Predictive Analytics**: Added trend analysis, depletion forecasting, burn rate calculation, and efficiency scoring
+- **Smart Status Bar**: Auto mode intelligently shows relevant analytics based on quota state
+- **Projected Remaining**: Shows how much quota you'll have left at reset time
+- **Visual Improvements**: Added emojis and better formatting to tooltips and webview
+- **New Settings**: `showCompactAnalytics` and `compactAnalytics` for controlling analytics display
+- **Branding**: Officially renamed to "Cosmic Quota" with 👽 emoji
 
-### 1.0.0
+### 0.1.0
 
 - Initial release
 - Basic quota monitoring in status bar
 - Detailed webview with all quotas
 - Auto-refresh with configurable interval
+- Session usage tracking
+- Notification alerts for low quota thresholds
+- Configurable color thresholds and time display formats
 
 ## Contributing
 
@@ -138,4 +169,4 @@ MIT License - see LICENSE file for details
 
 ---
 
-**Enjoy monitoring your Synthetic API quota with ease!**
+**Enjoy monitoring your Synthetic API quota with cosmic precision!** 👽🚀

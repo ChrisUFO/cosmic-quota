@@ -29,12 +29,22 @@ interface QuotaDisplayConfig {
 
 type StatusBarDisplayMode = 'subscription' | 'toolCalls' | 'search' | 'all' | 'average';
 type TimeDisplayMode = 'relative' | 'absolute' | 'both';
+type CompactAnalyticsMode = 'trend' | 'depletion' | 'burn' | 'auto' | 'off';
 
 interface SessionTracker {
     sessionStartTime: number;
     initialSubscriptionQuota: number;
     initialToolCallsQuota: number;
     initialSearchQuota: number;
+    history: Array<{ timestamp: number; subscriptionUsed: number }>;
+}
+
+interface QuotaAnalytics {
+    burnRatePerHour: number;
+    hoursUntilDepletion: number | null;
+    trend: 'up' | 'down' | 'stable';
+    efficiency: number; // % of quota used vs % of time elapsed
+    projectedRemainingAtReset: number | null; // How much quota will be left at reset time
 }
 
 const CONFIG_NAMESPACE = 'syntheticQuota';
@@ -124,6 +134,16 @@ class QuotaMonitor {
         return config.get<boolean>('trackSessionUsage', true);
     }
 
+    private getCompactAnalyticsMode(): CompactAnalyticsMode {
+        const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+        return config.get<CompactAnalyticsMode>('compactAnalytics', 'auto');
+    }
+
+    private shouldShowCompactAnalytics(): boolean {
+        const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
+        return config.get<boolean>('showCompactAnalytics', true);
+    }
+
     private onConfigurationChanged(e: vscode.ConfigurationChangeEvent): void {
         if (e.affectsConfiguration(`${CONFIG_NAMESPACE}.apiKey`)) {
             if (this.getApiKey()) {
@@ -140,6 +160,8 @@ class QuotaMonitor {
         if (e.affectsConfiguration(`${CONFIG_NAMESPACE}.statusBarDisplay`) ||
             e.affectsConfiguration(`${CONFIG_NAMESPACE}.statusBarCountdown`) ||
             e.affectsConfiguration(`${CONFIG_NAMESPACE}.trackSessionUsage`) ||
+            e.affectsConfiguration(`${CONFIG_NAMESPACE}.showCompactAnalytics`) ||
+            e.affectsConfiguration(`${CONFIG_NAMESPACE}.compactAnalytics`) ||
             e.affectsConfiguration(`${CONFIG_NAMESPACE}.resetTimeDisplay`) ||
             e.affectsConfiguration(`${CONFIG_NAMESPACE}.warningThreshold`) ||
             e.affectsConfiguration(`${CONFIG_NAMESPACE}.criticalThreshold`)) {
@@ -168,8 +190,83 @@ class QuotaMonitor {
             sessionStartTime: now,
             initialSubscriptionQuota: subscriptionPercent,
             initialToolCallsQuota: toolCallsPercent,
-            initialSearchQuota: searchPercent
+            initialSearchQuota: searchPercent,
+            history: [{ timestamp: now, subscriptionUsed: subscriptionPercent }]
         };
+    }
+
+    private updateSessionHistory(data: QuotaData): void {
+        if (!this.sessionTracker) { return; }
+        
+        const now = Date.now();
+        const subscriptionPercent = data.subscription.requests / data.subscription.limit;
+        
+        // Keep last 10 data points for trend analysis (sliding window)
+        this.sessionTracker.history.push({ timestamp: now, subscriptionUsed: subscriptionPercent });
+        if (this.sessionTracker.history.length > 10) {
+            this.sessionTracker.history.shift();
+        }
+    }
+
+    private getQuotaAnalytics(data: QuotaData): QuotaAnalytics {
+        const now = Date.now();
+        const subscription = data.subscription;
+        const usedPercent = (subscription.requests / subscription.limit) * 100;
+        const remainingPercent = 100 - usedPercent;
+        
+        // Calculate time until reset
+        const resetTime = new Date(subscription.renewsAt).getTime();
+        const timeUntilReset = Math.max(0, resetTime - now);
+        const hoursUntilReset = timeUntilReset / MS_PER_HOUR;
+        
+        // Calculate burn rate from session history using rolling window average
+        let burnRatePerHour = 0;
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        
+        if (this.sessionTracker && this.sessionTracker.history.length >= 2) {
+            const history = this.sessionTracker.history;
+            const first = history[0];
+            const last = history[history.length - 1];
+            const hoursElapsed = (last.timestamp - first.timestamp) / MS_PER_HOUR;
+            
+            if (hoursElapsed > 0) {
+                // Calculate overall burn rate from the entire history window
+                const usageChange = (last.subscriptionUsed - first.subscriptionUsed) * 100; // in percentage points
+                burnRatePerHour = usageChange / hoursElapsed;
+                
+                // Determine trend using recent data points (last 3 readings)
+                if (history.length >= 3) {
+                    const recent = history.slice(-3);
+                    const avgChange = ((recent[2].subscriptionUsed - recent[0].subscriptionUsed) * 100) / 2;
+                    if (avgChange > 1) { trend = 'up'; }
+                    else if (avgChange < -1) { trend = 'down'; }
+                }
+            }
+        }
+        
+        // Calculate hours until depletion based on current burn rate
+        let hoursUntilDepletion: number | null = null;
+        if (burnRatePerHour > 0 && remainingPercent > 0) {
+            hoursUntilDepletion = remainingPercent / burnRatePerHour;
+        }
+        
+        // Calculate efficiency (are we using quota proportionally to time elapsed?)
+        // If 12 hours have passed in a 24h cycle, we should have used ~50% for 100% efficiency
+        const expectedUsagePercent = hoursUntilReset > 0 
+            ? ((24 - hoursUntilReset) / 24) * 100 
+            : 0;
+        const efficiency = expectedUsagePercent > 0 
+            ? (usedPercent / expectedUsagePercent) * 100 
+            : 100;
+        
+        // Project remaining quota at reset time
+        let projectedRemainingAtReset: number | null = null;
+        if (hoursUntilReset > 0) {
+            const projectedUsageAtReset = usedPercent + (burnRatePerHour * hoursUntilReset);
+            projectedRemainingAtReset = Math.max(0, 100 - projectedUsageAtReset);
+        }
+        
+        return { burnRatePerHour, hoursUntilDepletion, trend, efficiency, projectedRemainingAtReset };
     }
 
     private getSessionUsage(data: QuotaData): { subscription: number; toolCalls: number; search: number } {
@@ -186,6 +283,65 @@ class QuotaMonitor {
             toolCalls: Math.round((this.sessionTracker.initialToolCallsQuota - currentToolPercent) * 100),
             search: Math.round((this.sessionTracker.initialSearchQuota - currentSearchPercent) * 100)
         };
+    }
+
+    private getTrendIcon(trend: 'up' | 'down' | 'stable'): string {
+        switch (trend) {
+            case 'up': return '📈';
+            case 'down': return '📉';
+            case 'stable': return '➡️';
+        }
+    }
+
+    private formatCompactDepletion(hours: number): string {
+        if (hours < 1) {
+            return `${Math.round(hours * 60)}m`;
+        } else if (hours < 24) {
+            return `${Math.round(hours)}h`;
+        } else {
+            return `${Math.round(hours / 24)}d`;
+        }
+    }
+
+    private getCompactAnalyticsText(analytics: QuotaAnalytics, usedPercent: number): string {
+        const mode = this.getCompactAnalyticsMode();
+        
+        if (mode === 'off' || !this.shouldShowCompactAnalytics()) {
+            return '';
+        }
+
+        // Auto mode: intelligently choose what to display based on quota state
+        if (mode === 'auto') {
+            // Critical (90%+): show depletion time - most urgent info
+            if (usedPercent >= 90 && analytics.hoursUntilDepletion !== null && analytics.hoursUntilDepletion < 24) {
+                return ` • ${this.formatCompactDepletion(analytics.hoursUntilDepletion)} left`;
+            }
+            // Warning (70%+): show trend when usage is changing
+            if (usedPercent >= 70 && analytics.trend !== 'stable') {
+                return ` ${this.getTrendIcon(analytics.trend)}`;
+            }
+            // Moderate (50%+): show burn rate if significant
+            if (usedPercent >= 50 && Math.abs(analytics.burnRatePerHour) > 3) {
+                const direction = analytics.burnRatePerHour > 0 ? '🔥' : '💚';
+                return ` ${direction}`;
+            }
+            return '';
+        }
+
+        if (mode === 'depletion' && analytics.hoursUntilDepletion !== null) {
+            return ` • ${this.formatCompactDepletion(analytics.hoursUntilDepletion)} left`;
+        }
+
+        if (mode === 'trend') {
+            return ` ${this.getTrendIcon(analytics.trend)}`;
+        }
+
+        if (mode === 'burn' && Math.abs(analytics.burnRatePerHour) > 0) {
+            const direction = analytics.burnRatePerHour > 0 ? '🔥' : '💚';
+            return ` ${direction} ${Math.abs(analytics.burnRatePerHour).toFixed(1)}%/h`;
+        }
+
+        return '';
     }
 
     private showSetupState(): void {
@@ -361,12 +517,16 @@ class QuotaMonitor {
             return;
         }
 
+        // Update session history for trend analysis
+        this.updateSessionHistory(this.quotaData);
+
         const displayMode = this.getStatusBarDisplayMode();
         const sessionUsage = this.getSessionUsage(this.quotaData);
+        const analytics = this.getQuotaAnalytics(this.quotaData);
 
         switch (displayMode) {
             case 'subscription':
-                this.updateStatusBarForQuota('subscription', this.quotaData.subscription, sessionUsage.subscription);
+                this.updateStatusBarForQuota('subscription', this.quotaData.subscription, sessionUsage.subscription, analytics);
                 break;
             case 'toolCalls':
                 this.updateStatusBarForQuota('toolCalls', this.quotaData.toolCalls, sessionUsage.toolCalls);
@@ -375,20 +535,21 @@ class QuotaMonitor {
                 this.updateStatusBarForQuota('search', this.quotaData.search.hourly, sessionUsage.search);
                 break;
             case 'all':
-                this.updateStatusBarAll();
+                this.updateStatusBarAll(analytics);
                 break;
             case 'average':
-                this.updateStatusBarAverage(sessionUsage);
+                this.updateStatusBarAverage(sessionUsage, analytics);
                 break;
             default:
-                this.updateStatusBarForQuota('subscription', this.quotaData.subscription, sessionUsage.subscription);
+                this.updateStatusBarForQuota('subscription', this.quotaData.subscription, sessionUsage.subscription, analytics);
         }
     }
 
     private updateStatusBarForQuota(
         name: string,
         quota: { limit: number; requests: number; renewsAt: string },
-        sessionUsed: number
+        sessionUsed: number,
+        analytics?: QuotaAnalytics
     ): void {
         const usedPercent = (quota.requests / quota.limit) * 100;
         const remaining = quota.limit - quota.requests;
@@ -400,6 +561,11 @@ class QuotaMonitor {
             text += ` (-${sessionUsed}%)`;
         }
 
+        // Add predictive analytics for subscription quota
+        if (name === 'subscription' && analytics) {
+            text += this.getCompactAnalyticsText(analytics, usedPercent);
+        }
+
         if (usedPercent >= 100 && this.shouldShowCountdown()) {
             const countdown = this.formatCountdown(quota.renewsAt);
             text = `${config.icon} ~${countdown}`;
@@ -407,11 +573,11 @@ class QuotaMonitor {
 
         this.statusBarItem.text = text;
         this.statusBarItem.color = config.color;
-        this.statusBarItem.tooltip = this.buildTooltip(name, quota, usedPercent, remaining, config.description);
+        this.statusBarItem.tooltip = this.buildTooltip(name, quota, usedPercent, remaining, config.description, analytics);
         this.statusBarItem.show();
     }
 
-    private updateStatusBarAll(): void {
+    private updateStatusBarAll(analytics?: QuotaAnalytics): void {
         const sub = this.quotaData!.subscription;
         const tool = this.quotaData!.toolCalls;
         const search = this.quotaData!.search.hourly;
@@ -424,13 +590,21 @@ class QuotaMonitor {
 
         let text = `$(dashboard) S:${subPercent.toFixed(0)}% T:${toolPercent.toFixed(0)}% H:${searchPercent.toFixed(0)}%`;
         
+        // Add compact trend indicator for subscription in all mode
+        if (analytics && this.shouldShowCompactAnalytics()) {
+            const mode = this.getCompactAnalyticsMode();
+            if ((mode === 'trend' || mode === 'auto') && analytics.trend !== 'stable') {
+                text += ` ${this.getTrendIcon(analytics.trend)}`;
+            }
+        }
+        
         this.statusBarItem.text = text;
         this.statusBarItem.color = undefined;
-        this.statusBarItem.tooltip = this.buildFullTooltip();
+        this.statusBarItem.tooltip = this.buildFullTooltip(analytics);
         this.statusBarItem.show();
     }
 
-    private updateStatusBarAverage(sessionUsage: { subscription: number; toolCalls: number; search: number }): void {
+    private updateStatusBarAverage(sessionUsage: { subscription: number; toolCalls: number; search: number }, analytics?: QuotaAnalytics): void {
         const sub = this.quotaData!.subscription;
         const tool = this.quotaData!.toolCalls;
         const search = this.quotaData!.search.hourly;
@@ -450,9 +624,17 @@ class QuotaMonitor {
             text += ` (-${avgSession}%)`;
         }
 
+        // Add analytics indicator
+        if (analytics && this.shouldShowCompactAnalytics()) {
+            const mode = this.getCompactAnalyticsMode();
+            if ((mode === 'trend' || mode === 'auto') && analytics.trend !== 'stable') {
+                text += ` ${this.getTrendIcon(analytics.trend)}`;
+            }
+        }
+
         this.statusBarItem.text = text;
         this.statusBarItem.color = config.color;
-        this.statusBarItem.tooltip = this.buildFullTooltip();
+        this.statusBarItem.tooltip = this.buildFullTooltip(analytics);
         this.statusBarItem.show();
     }
 
@@ -461,11 +643,44 @@ class QuotaMonitor {
         quota: { limit: number; requests: number; renewsAt: string },
         usedPercent: number,
         remaining: number,
-        status: string
+        status: string,
+        analytics?: QuotaAnalytics
     ): vscode.MarkdownString {
         const displayName = name === 'subscription' ? 'Subscription' : 
                            name === 'toolCalls' ? 'Tool Calls' : 'Search (Hourly)';
         const renewsIn = this.formatTimeUntil(quota.renewsAt);
+        
+        let analyticsSection = '';
+        if (name === 'subscription' && analytics) {
+            const trendIcon = this.getTrendIcon(analytics.trend);
+            const efficiencyText = analytics.efficiency > 100 
+                ? `${analytics.efficiency.toFixed(0)}% (above expected)` 
+                : `${analytics.efficiency.toFixed(0)}% (on track)`;
+            
+            analyticsSection = `
+### 📊 Session Analytics
+- **Trend:** ${trendIcon} ${analytics.trend}
+- **Efficiency:** ${efficiencyText}`;
+            
+            if (Math.abs(analytics.burnRatePerHour) > 0.01) {
+                const burnEmoji = analytics.burnRatePerHour > 0 ? '🔥' : '💚';
+                analyticsSection += `\n- **Burn Rate:** ${burnEmoji} ${Math.abs(analytics.burnRatePerHour).toFixed(2)}%/hour`;
+            }
+            
+            if (analytics.hoursUntilDepletion !== null && analytics.hoursUntilDepletion < 48 && analytics.hoursUntilDepletion > 0) {
+                const depletionText = analytics.hoursUntilDepletion < 1 
+                    ? `${Math.round(analytics.hoursUntilDepletion * 60)} minutes`
+                    : `${analytics.hoursUntilDepletion.toFixed(1)} hours`;
+                const warningEmoji = analytics.hoursUntilDepletion < 6 ? '⚠️' : '⏰';
+                analyticsSection += `\n- **${warningEmoji} Depletes in:** ${depletionText}`;
+            }
+            
+            if (analytics.projectedRemainingAtReset !== null) {
+                analyticsSection += `\n- **📈 Projected at reset:** ${analytics.projectedRemainingAtReset.toFixed(1)}% remaining`;
+            }
+            
+            analyticsSection += '\n';
+        }
         
         return new vscode.MarkdownString(`
 ## ${displayName}
@@ -473,31 +688,66 @@ class QuotaMonitor {
 - **Used:** ${quota.requests.toFixed(1)} / ${quota.limit} (${usedPercent.toFixed(1)}%)
 - **Remaining:** ${remaining.toFixed(1)}
 - **Status:** ${status}
-- **Resets:** ${renewsIn}
+- **Resets:** ${renewsIn}${analyticsSection}
 
 *Click for detailed view*
         `);
     }
 
-    private buildFullTooltip(): vscode.MarkdownString {
+    private buildFullTooltip(analytics?: QuotaAnalytics): vscode.MarkdownString {
         const sub = this.quotaData!.subscription;
         const tool = this.quotaData!.toolCalls;
         const search = this.quotaData!.search.hourly;
 
-        return new vscode.MarkdownString(`
-## Synthetic API Quota
+        let analyticsSection = '';
+        if (analytics) {
+            const trendIcon = this.getTrendIcon(analytics.trend);
+            const efficiencyText = analytics.efficiency > 100 
+                ? `${analytics.efficiency.toFixed(0)}% (using more than expected)` 
+                : `${analytics.efficiency.toFixed(0)}% (on track)`;
+            
+            analyticsSection = `
 
-### Subscription
+### 📊 Session Analytics
+- **Trend:** ${trendIcon} ${analytics.trend}
+- **Efficiency:** ${efficiencyText}`;
+            
+            if (Math.abs(analytics.burnRatePerHour) > 0.01) {
+                const burnEmoji = analytics.burnRatePerHour > 0 ? '🔥' : '💚';
+                const burnText = analytics.burnRatePerHour > 0 ? 'consuming' : 'recovering';
+                analyticsSection += `\n- **Burn Rate:** ${burnEmoji} ${Math.abs(analytics.burnRatePerHour).toFixed(2)}%/hour (${burnText})`;
+            }
+            
+            if (analytics.hoursUntilDepletion !== null && analytics.hoursUntilDepletion > 0 && analytics.hoursUntilDepletion < 48) {
+                const depletionText = analytics.hoursUntilDepletion < 1 
+                    ? `${Math.round(analytics.hoursUntilDepletion * 60)}m`
+                    : `${analytics.hoursUntilDepletion.toFixed(1)}h`;
+                const warningEmoji = analytics.hoursUntilDepletion < 6 ? '⚠️' : '⏰';
+                analyticsSection += `\n- **${warningEmoji} Depletes in:** ${depletionText}`;
+            }
+            
+            if (analytics.projectedRemainingAtReset !== null) {
+                const projectedText = analytics.projectedRemainingAtReset < 10 
+                    ? `${analytics.projectedRemainingAtReset.toFixed(1)}% (low!)`
+                    : `${analytics.projectedRemainingAtReset.toFixed(1)}%`;
+                analyticsSection += `\n- **📈 Projected at reset:** ${projectedText}`;
+            }
+        }
+
+        return new vscode.MarkdownString(`
+## 👽 Cosmic Quota
+
+### 📦 Subscription
 - Used: ${sub.requests.toFixed(1)} / ${sub.limit} (${((sub.requests/sub.limit)*100).toFixed(1)}%)
 - Resets: ${this.formatTimeUntil(sub.renewsAt)}
 
-### Tool Calls
+### 🔧 Tool Calls
 - Used: ${tool.requests} / ${tool.limit} (${((tool.requests/tool.limit)*100).toFixed(1)}%)
 - Resets: ${this.formatTimeUntil(tool.renewsAt)}
 
-### Search (Hourly)
+### 🔍 Search (Hourly)
 - Used: ${search.requests} / ${search.limit} (${((search.requests/search.limit)*100).toFixed(1)}%)
-- Resets: ${this.formatTimeUntil(search.renewsAt)}
+- Resets: ${this.formatTimeUntil(search.renewsAt)}${analyticsSection}
 
 *Click for detailed view*
         `);
@@ -512,7 +762,7 @@ class QuotaMonitor {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Accept': 'application/json',
-                    'User-Agent': 'VSCode-Synthetic-Quota-Extension/1.0.0'
+                    'User-Agent': 'VSCode-Synthetic-Quota-Extension/0.2.0'
                 },
                 timeout: 10000
             };
@@ -596,7 +846,7 @@ class QuotaMonitor {
 
         const panel = vscode.window.createWebviewPanel(
             'syntheticQuotaDetails',
-            'Synthetic Quota Details',
+            'Cosmic Quota Details',
             vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -606,7 +856,7 @@ class QuotaMonitor {
 
         panel.webview.html = this.getDetailsHtml(this.quotaData);
 
-        // FIX: Add message handler for refresh button
+        // Message handler for refresh button
         panel.webview.onDidReceiveMessage(
             async (message) => {
                 switch (message.command) {
@@ -639,6 +889,7 @@ class QuotaMonitor {
         const searchRemaining = search.limit - search.requests;
 
         const sessionUsage = this.getSessionUsage(data);
+        const analytics = this.getQuotaAnalytics(data);
 
         const formatDate = (iso: string) => new Date(iso).toLocaleString();
 
@@ -656,12 +907,40 @@ class QuotaMonitor {
             return 'Healthy';
         };
 
+        const trendIcon = this.getTrendIcon(analytics.trend);
+        const efficiencyColor = analytics.efficiency > 100 ? '#FF6B6B' : '#4EC9B0';
+        const efficiencyText = analytics.efficiency > 100 ? 'Above expected' : 'On track';
+        
+        let depletionHtml = '';
+        if (analytics.hoursUntilDepletion !== null && analytics.hoursUntilDepletion > 0) {
+            const depletionTime = analytics.hoursUntilDepletion < 1 
+                ? `${Math.round(analytics.hoursUntilDepletion * 60)} minutes`
+                : `${analytics.hoursUntilDepletion.toFixed(1)} hours`;
+            depletionHtml = `
+                <div class="analytics-row">
+                    <span class="analytics-label">⏰ Depletes in:</span>
+                    <span class="analytics-value ${analytics.hoursUntilDepletion < 6 ? 'warning' : ''}">${depletionTime}</span>
+                </div>
+            `;
+        }
+
+        let projectedHtml = '';
+        if (analytics.projectedRemainingAtReset !== null) {
+            const projectedClass = analytics.projectedRemainingAtReset < 10 ? 'warning' : '';
+            projectedHtml = `
+                <div class="analytics-row">
+                    <span class="analytics-label">📈 Projected at reset:</span>
+                    <span class="analytics-value ${projectedClass}">${analytics.projectedRemainingAtReset.toFixed(1)}%</span>
+                </div>
+            `;
+        }
+
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synthetic Quota Details</title>
+    <title>Cosmic Quota Details</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -681,6 +960,13 @@ class QuotaMonitor {
             padding: 20px;
             margin: 20px 0;
             border: 1px solid var(--vscode-panel-border);
+        }
+        .analytics-card {
+            background: var(--vscode-editor-inactiveSelectionBackground);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid var(--vscode-button-background);
         }
         .quota-header {
             display: flex;
@@ -777,10 +1063,73 @@ class QuotaMonitor {
         .session-usage-value {
             font-weight: 600;
         }
+        .analytics-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--vscode-panel-border);
+        }
+        .analytics-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--vscode-button-background);
+        }
+        .analytics-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+        .analytics-label {
+            opacity: 0.8;
+        }
+        .analytics-value {
+            font-weight: 600;
+        }
+        .analytics-value.warning {
+            color: #FF6B6B;
+        }
+        .trend-indicator {
+            font-size: 20px;
+        }
+        .efficiency-indicator {
+            font-size: 16px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
-    <h1>Synthetic API Quota Monitor</h1>
+    <h1>👽 Cosmic Quota Monitor</h1>
+
+    <div class="analytics-card">
+        <div class="quota-header">
+            <span class="quota-title">📊 Predictive Analytics</span>
+            <span class="trend-indicator">${trendIcon}</span>
+        </div>
+        <div class="analytics-section" style="margin-top: 0; border-top: none;">
+            <div class="analytics-row">
+                <span class="analytics-label">Current Trend:</span>
+                <span class="analytics-value">${analytics.trend}</span>
+            </div>
+            <div class="analytics-row">
+                <span class="analytics-label">Efficiency Score:</span>
+                <span class="analytics-value" style="color: ${efficiencyColor};">${analytics.efficiency.toFixed(0)}% (${efficiencyText})</span>
+            </div>
+            ${Math.abs(analytics.burnRatePerHour) > 0.01 ? `
+            <div class="analytics-row">
+                <span class="analytics-label">Burn Rate:</span>
+                <span class="analytics-value ${Math.abs(analytics.burnRatePerHour) > 10 ? 'warning' : ''}">
+                    ${analytics.burnRatePerHour > 0 ? '🔥' : '💚'} ${Math.abs(analytics.burnRatePerHour).toFixed(2)}%/hour
+                </span>
+            </div>
+            ` : ''}
+            ${depletionHtml}
+            ${projectedHtml}
+        </div>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--vscode-panel-border); font-size: 11px; opacity: 0.7;">
+            💡 Predictions based on your current session's usage pattern (up to last 10 data points)
+        </div>
+    </div>
 
     <div class="quota-card">
         <div class="quota-header">
@@ -917,7 +1266,7 @@ class QuotaMonitor {
     <div class="last-updated">
         Last updated: ${this.lastFetchTime ? this.lastFetchTime.toLocaleString() : 'Never'}
         <br>
-        <button class="refresh-btn" onclick="refresh()">Refresh Now</button>
+        <button class="refresh-btn" onclick="refresh()">🔄 Refresh Now</button>
     </div>
 
     <script>
