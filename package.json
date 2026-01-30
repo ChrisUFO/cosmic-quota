@@ -1,0 +1,143 @@
+{
+  "name": "cosmic-quota",
+  "displayName": "=} Cosmic Quota",
+  "description": "An otherworldly VS Code: extension that monitors your Synthetic API quota from the far reaches of space",
+  "version": "0.1.0",
+  "publisher": "ChrisUFO",
+  "license": "MIT",
+  "author": "ChrisUFO <chris@charrison.us>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/synthetic-quota-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/synthetic-quota-vscode/issues"
+  },
+  "keywords": [
+    "synthetic",
+    "api",
+    "quota",
+    "usage",
+    "monitor",
+    "rate-limit"
+  ],
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Synthetic Quota",
+      "properties": {
+        "syntheticQuota.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your Synthetic API key for accessing quota information",
+          "scope": "application"
+        },
+        "syntheticQuota.refreshInterval": {
+          "type": "number",
+          "default": 300,
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Refresh interval in seconds (default: 5 minutes, min: 60s, max: 1 hour)"
+        },
+        "syntheticQuota.statusBarDisplay": {
+          "type": "string",
+          "default": "subscription",
+          "enum": [
+            "subscription",
+            "toolCalls",
+            "search",
+            "all",
+            "average"
+          ],
+          "enumDescriptions": [
+            "Show subscription quota usage",
+            "Show tool calls quota usage",
+            "Show search (hourly) quota usage",
+            "Show all quotas abbreviated (S:/T:/H:)",
+            "Show average of all quotas"
+          ],
+          "description": "What to display in the status bar"
+        },
+        "syntheticQuota.statusBarCountdown": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show countdown to reset in status bar when quota reaches 0%"
+        },
+        "syntheticQuota.trackSessionUsage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Track session usage (quota used since VS Code: window opened)"
+        },
+        "syntheticQuota.resetTimeDisplay": {
+          "type": "string",
+          "default": "relative",
+          "enum": [
+            "relative",
+            "absolute",
+            "both"
+          ],
+          "enumDescriptions": [
+            "Show relative time (e.g., 'in 2h 13m')",
+            "Show absolute local time (e.g., 'resets at 14:07')",
+            "Show both formats (e.g., 'in 2h 13m (14:07)')"
+          ],
+          "description": "How to display the quota reset time in tooltips"
+        },
+        "syntheticQuota.warningThreshold": {
+          "type": "number",
+          "default": 70,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Usage percentage that triggers warning status (yellow)"
+        },
+        "syntheticQuota.criticalThreshold": {
+          "type": "number",
+          "default": 90,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Usage percentage that triggers critical status (red)"
+        },
+        "syntheticQuota.lowQuotaNotificationThreshold": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage threshold to show a notification when remaining quota drops below this value. Set to 0 to disable notifications."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "syntheticQuota.refresh",
+        "title": "Refresh Synthetic Quota",
+        "category": "Synthetic Quota",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "syntheticQuota.showDetails",
+        "title": "Show Quota Details",
+        "category": "Synthetic Quota"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  }
+}
