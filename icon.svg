@@ -1,53 +1,89 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <!-- Background gradient -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    <!-- Cosmic Void Background -->
+    <radialGradient id="voidGradient" cx="50%" cy="0%" r="100%">
+      <stop offset="0%" style="stop-color:#1e1e2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a12;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- Neon Cyan Gradient -->
+    <linearGradient id="neonCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d2d3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2a9d8f;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4ec9b0;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0d7377;stop-opacity:1" />
+
+    <!-- Neon Purple Gradient -->
+    <linearGradient id="neonPurple" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#7d5fff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5f27cd;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="planetGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#5eead4;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#4ec9b0;stop-opacity:1" />
-    </linearGradient>
+
+    <!-- Planet/Core Gradient -->
+    <radialGradient id="coreGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9" />
+      <stop offset="30%" style="stop-color:#7d5fff;stop-opacity:0.8" />
+      <stop offset="80%" style="stop-color:#1e1e2e;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#0a0a12;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- Glow Filter -->
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Intense Core Glow -->
+    <filter id="coreGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
       <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
-  
-  <!-- Background circle -->
-  <circle cx="64" cy="64" r="60" fill="url(#bgGradient)" stroke="#4ec9b0" stroke-width="2"/>
-  
-  <!-- Orbit rings representing quota levels -->
-  <ellipse cx="64" cy="64" rx="45" ry="20" fill="none" stroke="url(#ringGradient)" stroke-width="2" opacity="0.6" transform="rotate(-45 64 64)"/>
-  <ellipse cx="64" cy="64" rx="35" ry="15" fill="none" stroke="url(#ringGradient)" stroke-width="2" opacity="0.8" transform="rotate(-45 64 64)"/>
-  
-  <!-- Planet body -->
-  <circle cx="64" cy="64" r="20" fill="url(#planetGradient)" filter="url(#glow)"/>
-  
-  <!-- Eye (alien watching quota) -->
-  <ellipse cx="64" cy="58" rx="8" ry="6" fill="#1a1a2e"/>
-  <circle cx="64" cy="58" r="3" fill="#4ec9b0"/>
-  
-  <!-- Progress arc showing quota usage -->
-  <path d="M 64 30 A 34 34 0 0 1 85 40" fill="none" stroke="#ff6b6b" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
-  <path d="M 85 40 A 34 34 0 0 1 98 64" fill="none" stroke="#ffd93d" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
-  
-  <!-- Stars in background -->
-  <circle cx="25" cy="35" r="1.5" fill="white" opacity="0.8"/>
-  <circle cx="95" cy="25" r="1" fill="white" opacity="0.6"/>
-  <circle cx="105" cy="75" r="1.5" fill="white" opacity="0.7"/>
-  <circle cx="30" cy="95" r="1" fill="white" opacity="0.5"/>
-  <circle cx="15" cy="60" r="1" fill="white" opacity="0.6"/>
-  
-  <!-- Small satellite/moon representing tool calls -->
-  <circle cx="95" cy="50" r="6" fill="#5eead4" opacity="0.9"/>
-  <circle cx="95" cy="50" r="2" fill="#1a1a2e"/>
+
+  <!-- Background Container -->
+  <rect x="0" y="0" width="512" height="512" rx="100" ry="100" fill="url(#voidGradient)" />
+
+  <!-- Subtle Data Grid Background -->
+  <path d="M56 128H456M56 256H456M56 384H456" stroke="#7d5fff" stroke-width="1" stroke-opacity="0.1" />
+  <path d="M128 56V456M256 56V456M384 56V456" stroke="#7d5fff" stroke-width="1" stroke-opacity="0.1" />
+
+  <!-- Outer Ring (Subscription Link) - Cyan -->
+  <path d="M256 80 A 176 176 0 1 1 131.5 131.5" fill="none" stroke="url(#neonCyan)" stroke-width="24" stroke-linecap="round" filter="url(#glow)" opacity="0.9" />
+  <!-- Ghost of outer ring -->
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#00d2d3" stroke-width="4" opacity="0.1" />
+
+  <!-- Middle Orbit (Tool Calls) - Purple -->
+  <path d="M256 386 A 130 130 0 1 0 164 164" fill="none" stroke="url(#neonPurple)" stroke-width="20" stroke-linecap="round" filter="url(#glow)" opacity="0.9" />
+  <!-- Ghost of middle ring -->
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#7d5fff" stroke-width="4" opacity="0.1" />
+
+  <!-- Inner Core System -->
+  <g transform="translate(256 256)">
+    <!-- Rotating Elements (Simulated orbital mech) -->
+    <circle cx="0" cy="0" r="70" fill="#151520" stroke="#7d5fff" stroke-width="2" />
+    
+    <!-- The "Eye" / Core -->
+    <circle cx="0" cy="0" r="40" fill="url(#coreGradient)" filter="url(#coreGlow)" />
+    
+    <!-- Pupil / Iris -->
+    <ellipse cx="0" cy="0" rx="15" ry="40" fill="#0a0a12" opacity="0.6">
+        <animateTransform attributeName="transform" type="scale" values="1 1; 0.2 1; 1 1" dur="4s" repeatCount="indefinite" />
+    </ellipse>
+    
+    <!-- Orbital Satellite -->
+    <circle cx="90" cy="0" r="12" fill="#ff4d4d" filter="url(#glow)">
+      <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="10s" repeatCount="indefinite" />
+    </circle>
+  </g>
+
+  <!-- Status Indicator Dot -->
+  <circle cx="420" cy="92" r="16" fill="#00d2d3" filter="url(#coreGlow)">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite" />
+  </circle>
+
 </svg>
