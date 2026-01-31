@@ -2,7 +2,7 @@
 
 **Transmitting quota data from the far reaches of the Synthetic galaxy...**
 
-**Real-time Synthetic API quota monitoring with status bar metrics, predictive analytics, and depletion forecasting.**
+**Synthetic API quota monitoring with status bar metrics, predictive analytics, and depletion forecasting.**
 
 ## 🛸 Features
 
@@ -139,6 +139,10 @@ Click the status bar item at any time to open the detailed quota view.
 - Predictive analytics require at least 2 data points (a few minutes of session time)
 
 ## Release Notes
+
+### 0.3.3
+
+- **Documentation**: Condensed description for better readability.
 
 ### 0.3.2
 

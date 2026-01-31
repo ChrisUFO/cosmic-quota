@@ -1,8 +1,8 @@
 {
   "name": "cosmic-quota",
   "displayName": "Cosmic Quota",
-  "description": "Real-time Synthetic API quota monitoring with status bar metrics, predictive analytics, and depletion forecasting.",
-  "version": "0.3.2",
+  "description": "Synthetic API quota monitoring with status bar metrics, predictive analytics, and depletion forecasting.",
+  "version": "0.3.3",
   "publisher": "ChrisUFO",
   "license": "MIT",
   "author": "ChrisUFO <chris@charrison.us>",
