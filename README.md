@@ -140,6 +140,11 @@ Click the status bar item at any time to open the detailed quota view.
 
 ## Release Notes
 
+### 0.3.1
+
+- **New Icon**: Updated extension icon with a high-fidelity "Cosmic Eye" design.
+- **Polish**: Minor visual improvements.
+
 ### 0.3.0 (The Cosmic Overhaul)
 
 - **Complete UI/UX Overhaul**: New dashboard with glassmorphism, neon accents, and smooth transitions.
