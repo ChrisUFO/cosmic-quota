@@ -25,15 +25,37 @@ describe('AnalyticsEngine', () => {
     });
 
     test('should determine trend correctly', async () => {
-        // Mock timestamps by manually manipulating history if needed, 
-        // but let's try a small delay first.
-        engine.updateHistory({ ...mockData, subscription: { ...mockData.subscription, requests: 520 } });
-        await new Promise(r => setTimeout(r, 10)); // Ensure different timestamp
-        engine.updateHistory({ ...mockData, subscription: { ...mockData.subscription, requests: 550 } });
-        await new Promise(r => setTimeout(r, 10));
-        engine.updateHistory({ ...mockData, subscription: { ...mockData.subscription, requests: 600 } });
+        const t0 = 1000000;
+        // Anchor the session tracker
+        engine['sessionTracker']! = {
+            sessionStartTime: t0,
+            initialSubscriptionQuota: 0.5,
+            initialToolCallsQuota: 0.2,
+            initialSearchQuota: 0.2,
+            history: [
+                { timestamp: t0, subscriptionUsed: 0.50 },
+                { timestamp: t0 + 300000, subscriptionUsed: 0.52 },
+                { timestamp: t0 + 600000, subscriptionUsed: 0.55 },
+                { timestamp: t0 + 900000, subscriptionUsed: 0.60 }
+            ]
+        };
 
-        const analytics = engine.getAnalytics({ ...mockData, subscription: { ...mockData.subscription, requests: 600 } });
+        const analytics = engine.getAnalytics(mockData, t0 + 900000);
         expect(analytics.trend).toBe('up');
+    });
+
+    test('should calculate forecasted usage at reset', () => {
+        const now = 1000 * 60 * 60 * 4; // 4 hours since epoch
+        const resetAt = new Date(1000 * 60 * 60 * 5).toISOString(); // 5 hours since epoch
+
+        const data: QuotaData = {
+            ...mockData,
+            subscription: { ...mockData.subscription, requests: 500, limit: 1000, renewsAt: resetAt }
+        };
+
+        const analytics = engine.getAnalytics(data, now);
+        // Used 50% in 4 hours = 12.5%/hr. 
+        // 1 hour left. Forecast = 50 + 12.5 = 62.5 -> 63
+        expect(analytics.projectedUsageAtReset).toBe(63);
     });
 });

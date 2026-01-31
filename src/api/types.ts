@@ -40,5 +40,6 @@ export interface QuotaAnalytics {
   burnRatePerHour: number;
   hoursUntilDepletion: number | null;
   trend: 'up' | 'down' | 'stable';
-  projectedRemainingAtReset: number | null;
+  projectedUsageAtReset: number | null;
+  sessionHistory: Array<{ timestamp: number; usage: number }>;
 }

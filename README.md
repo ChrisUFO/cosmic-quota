@@ -140,6 +140,14 @@ Click the status bar item at any time to open the detailed quota view.
 
 ## Release Notes
 
+### 0.4.0 (The Precision Pulse)
+
+- **Hybrid Prediction Model**: Blends long-term global usage with short-term session bursts for accurate depletion forecasting.
+- **Usage Sparklines**: Added SVG-based session usage graphs to the dashboard.
+- **Forecast Metrics**: Renamed "Projected" to "Forecasted Usage" and flipped to show usage percentage at reset (e.g., 85%/100%).
+- **Trend Fix**: Resolved bug where 'Stable' trend showed a declining icon.
+- **Code Hardening**: Refactored analytics engine for deterministic testing and better reliability.
+
 ### 0.3.3
 
 - **Documentation**: Condensed description for better readability.
@@ -159,7 +167,11 @@ Click the status bar item at any time to open the detailed quota view.
 - **Complete UI/UX Overhaul**: New dashboard with glassmorphism, neon accents, and smooth transitions.
 - **Micro-animations**: Percentage counters and springy progress bars for a premium feel.
 - **Modular Architecture**: Complete codebase refactor for better stability and performance.
-- **Enhanced Predictive Analytics**: Improved accuracy for depletion and burn rate modeling.
+- **Enhanced Hybrid Analytics**: New predictive model that blends global burn rates with current session activity for high-precision forecasting.
+- **Session Usage Sparklines**: High-fidelity SVG usage graphs in the dashboard to visualize your usage pulse at a glance.
+- **Forecasted Usage**: Renamed "Projected" to "Forecasted Usage" with a clearer "Usage % at Reset" metric.
+- **Trend Logic Repair**: Fixed inconsistent trend icons for "stable" usage patterns.
+- **Complete UI/UX Overhaul**: New dashboard with glassmorphism, neon accents, and smooth transitions.
 - **Rich Markdown Tooltips**: Beautifully formatted status bar summaries with tables and projections.
 - **Developer Experience**: Added unit testing (Jest), ESLint automation, and pre-commit hooks.
 

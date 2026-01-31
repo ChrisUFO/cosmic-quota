@@ -39,8 +39,8 @@ export class AnalyticsEngine {
     }
   }
 
-  public getAnalytics(data: QuotaData): QuotaAnalytics {
-    const now = Date.now();
+  public getAnalytics(data: QuotaData, nowOverride?: number): QuotaAnalytics {
+    const now = nowOverride || Date.now();
     const subscription = data.subscription;
     const usedPercent = (subscription.requests / subscription.limit) * 100;
     const remainingPercent = 100 - usedPercent;
@@ -53,15 +53,16 @@ export class AnalyticsEngine {
     const cycleHours = 5;
     const hoursElapsedInCycle = Math.max(0, cycleHours - hoursUntilReset);
 
-    // Calculate average burn rate since cycle start
-    let averageBurnRatePerHour = 0;
+    // Calculate global burn rate (historical daily average baseline)
+    let globalBurnRatePerHour = 0;
     if (hoursElapsedInCycle > 0.1) {
-      averageBurnRatePerHour = usedPercent / hoursElapsedInCycle;
+      globalBurnRatePerHour = usedPercent / hoursElapsedInCycle;
     }
 
-    // Calculate session burn rate for trend analysis
+    // Calculate session burn rate for trend analysis and hybrid prediction
     let sessionBurnRatePerHour = 0;
     let trend: 'up' | 'down' | 'stable' = 'stable';
+    let isSessionReliable = false;
 
     if (this.sessionTracker && this.sessionTracker.history.length >= 2) {
       const history = this.sessionTracker.history;
@@ -69,44 +70,71 @@ export class AnalyticsEngine {
       const last = history[history.length - 1];
       const sessionHoursElapsed = (last.timestamp - first.timestamp) / MS_PER_HOUR;
 
-      if (sessionHoursElapsed > 0) {
+      if (sessionHoursElapsed > 0.05) {
+        // Minimum 3 minutes to be considered reliable
+        isSessionReliable = true;
         const usageChange = (last.subscriptionUsed - first.subscriptionUsed) * 100;
-        sessionBurnRatePerHour = usageChange / sessionHoursElapsed;
+        sessionBurnRatePerHour = Math.max(0, usageChange / sessionHoursElapsed);
 
         if (history.length >= 3) {
           const recent = history.slice(-3);
-          const avgChange = ((recent[2].subscriptionUsed - recent[0].subscriptionUsed) * 100) / 2;
-          if (avgChange > 1) {
+          const recentChange = (recent[2].subscriptionUsed - recent[0].subscriptionUsed) * 100;
+          // Only show up/down if change is significant (>0.1%)
+          if (recentChange > 0.1) {
             trend = 'up';
-          } else if (avgChange < -1) {
+          } else if (recentChange < -0.1) {
             trend = 'down';
+          } else {
+            trend = 'stable';
           }
         }
       }
     }
 
-    // Use session burn rate if available and reliable, otherwise fall back to cycle average
-    const burnRatePerHour =
-      sessionBurnRatePerHour !== 0 ? sessionBurnRatePerHour : averageBurnRatePerHour;
+    // Hybrid Prediction Logic:
+    // We blend the Global Rate (long-term baseline) with the Session Rate (immediate impact).
+    // If the session is active and reliable, we weigh it into the prediction.
+    let effectiveBurnRate = globalBurnRatePerHour;
+
+    if (isSessionReliable) {
+      // Weighted Average: 70% Global (Stability), 30% Session (Responsiveness)
+      // This prevents wild swings from short bursts while still reacting to high-usage sessions.
+      effectiveBurnRate = globalBurnRatePerHour * 0.7 + sessionBurnRatePerHour * 0.3;
+    }
+
+    const burnRatePerHour = effectiveBurnRate;
 
     // Calculate hours until depletion (only if it happens before reset)
     let hoursUntilDepletion: number | null = null;
-    if (burnRatePerHour > 0 && remainingPercent > 0 && hoursUntilReset > 0) {
+    if (burnRatePerHour > 1 && remainingPercent > 0 && hoursUntilReset > 0) {
       const calculatedDepletion = remainingPercent / burnRatePerHour;
       // Only show depletion if it happens before the quota resets
       if (calculatedDepletion < hoursUntilReset) {
         hoursUntilDepletion = calculatedDepletion;
       }
     }
-
-    // Project remaining at reset using cycle average rate
-    let projectedRemainingAtReset: number | null = null;
-    if (hoursUntilReset > 0 && averageBurnRatePerHour > 0) {
-      const projectedTotalUsage = averageBurnRatePerHour * cycleHours;
-      projectedRemainingAtReset = Math.max(0, 100 - projectedTotalUsage);
+    // FORECAST: Predicted Total Usage at Reset
+    let projectedUsageAtReset: number | null = null;
+    if (hoursUntilReset > 0) {
+      const remainingUsageForecast = burnRatePerHour * hoursUntilReset;
+      projectedUsageAtReset = Math.min(100, Math.round(usedPercent + remainingUsageForecast));
     }
 
-    return { burnRatePerHour, hoursUntilDepletion, trend, projectedRemainingAtReset };
+    // Map history to simple objects for the graph
+    const sessionHistory = this.sessionTracker
+      ? this.sessionTracker.history.map((h) => ({
+          timestamp: h.timestamp,
+          usage: Math.round(h.subscriptionUsed * 100)
+        }))
+      : [];
+
+    return {
+      burnRatePerHour,
+      hoursUntilDepletion,
+      trend,
+      projectedUsageAtReset,
+      sessionHistory
+    };
   }
 
   public getSessionUsage(data: QuotaData): {

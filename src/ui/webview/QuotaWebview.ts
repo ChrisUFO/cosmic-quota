@@ -81,7 +81,9 @@ export class QuotaWebview {
         <div class="card analytics-panel">
             <div class="card-header">
                 <div class="card-title">📊 Predictive Analytics</div>
-                <div class="stat-value" style="font-size: 24px;">${analytics.trend === 'up' ? '📈' : '📉'} ${analytics.trend.toUpperCase()}</div>
+                <div class="stat-value" style="font-size: 24px;">
+                    ${analytics.trend === 'up' ? '📈' : analytics.trend === 'down' ? '📉' : '➡️'} ${analytics.trend.toUpperCase()}
+                </div>
             </div>
             <div class="analytics-grid">
                 <div class="stat-item">
@@ -95,13 +97,19 @@ export class QuotaWebview {
                     <div class="stat-value">${analytics.hoursUntilDepletion ? analytics.hoursUntilDepletion.toFixed(1) + 'h' : 'Stable'}</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">Projected</div>
-                    <div class="stat-value">${analytics.projectedRemainingAtReset ? analytics.projectedRemainingAtReset.toFixed(1) + '%' : '--'}</div>
+                    <div class="stat-label">Forecasted Usage</div>
+                    <div class="stat-value" style="color: ${(analytics.projectedUsageAtReset || 0) >= 100 ? '#ff4d4d' : (analytics.projectedUsageAtReset || 0) >= 80 ? '#ff9f43' : '#4ec9b0'}">
+                        ${analytics.projectedUsageAtReset ? analytics.projectedUsageAtReset + '%' : '--'}
+                    </div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Reset In</div>
                     <div class="stat-value">${this.formatDuration(data.subscription.renewsAt)}</div>
                 </div>
+            </div>
+            <div class="graph-container" style="margin-top: 20px; height: 60px; pointer-events: none;">
+                ${this.generateSparkline(analytics.sessionHistory)}
+                <div style="font-size: 10px; color: #888; text-align: center; margin-top: 4px;">Session Usage Pulse</div>
             </div>
         </div>
 
@@ -163,6 +171,37 @@ export class QuotaWebview {
     <script src="${scriptUri}"></script>
 </body>
 </html>`;
+  }
+
+  private static generateSparkline(history: Array<{ timestamp: number; usage: number }>): string {
+    if (history.length < 2) {
+      return `<svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width: 100%; height: 100%; opacity: 0.3;">
+                <line x1="0" y1="10" x2="100" y2="10" stroke="#4ec9b0" stroke-width="1" stroke-dasharray="2,2" />
+              </svg>`;
+    }
+
+    const minUsage = Math.min(...history.map((h) => h.usage));
+    const maxUsage = Math.max(...history.map((h) => h.usage));
+    const range = Math.max(1, maxUsage - minUsage);
+
+    const points = history
+      .map((h, i) => {
+        const x = (i / (history.length - 1)) * 100;
+        const y = 20 - ((h.usage - minUsage) / range) * 15 - 2; // Leave some padding
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    return `<svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width: 100%; height: 100%; filter: drop-shadow(0 2px 4px rgba(78, 201, 176, 0.2));">
+              <defs>
+                <linearGradient id="sparkGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#4ec9b0" stop-opacity="0.5" />
+                  <stop offset="100%" stop-color="#4ec9b0" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M 0 20 L ${points} L 100 20 Z" fill="url(#sparkGradient)" />
+              <polyline points="${points}" fill="none" stroke="#4ec9b0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>`;
   }
 
   private static formatDuration(iso: string): string {
