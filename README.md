@@ -2,7 +2,7 @@
 
 **Transmitting quota data from the far reaches of the Synthetic galaxy...**
 
-An otherworldly VS Code: extension that monitors your Synthetic API quota directly from the cosmic void. Stay informed about your interstellar resource levels before your energy cells deplete.
+**Real-time Synthetic API quota monitoring with status bar metrics, predictive analytics, and depletion forecasting.**
 
 ## 🛸 Features
 
@@ -139,6 +139,11 @@ Click the status bar item at any time to open the detailed quota view.
 - Predictive analytics require at least 2 data points (a few minutes of session time)
 
 ## Release Notes
+
+### 0.3.2
+
+- **Documentation**: Updated meta description for better discoverability.
+- **Polish**: Refined extension summary.
 
 ### 0.3.1
 
