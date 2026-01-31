@@ -140,6 +140,15 @@ Click the status bar item at any time to open the detailed quota view.
 
 ## Release Notes
 
+### 0.3.0 (The Cosmic Overhaul)
+
+- **Complete UI/UX Overhaul**: New dashboard with glassmorphism, neon accents, and smooth transitions.
+- **Micro-animations**: Percentage counters and springy progress bars for a premium feel.
+- **Modular Architecture**: Complete codebase refactor for better stability and performance.
+- **Enhanced Predictive Analytics**: Improved accuracy for depletion and burn rate modeling.
+- **Rich Markdown Tooltips**: Beautifully formatted status bar summaries with tables and projections.
+- **Developer Experience**: Added unit testing (Jest), ESLint automation, and pre-commit hooks.
+
 ### 0.2.0
 
 - **Predictive Analytics**: Added trend analysis, depletion forecasting, burn rate calculation, and efficiency scoring

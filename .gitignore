@@ -4,3 +4,13 @@ node_modules/
 *.vsix
 .DS_Store
 *.log
+
+# Project Documentation
+PLAN.md
+
+# Tooling
+.eslintcache
+coverage/
+tsconfig.tsbuildinfo
+.husky/_
+.env
