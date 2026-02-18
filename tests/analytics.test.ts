@@ -6,7 +6,7 @@ describe('AnalyticsEngine', () => {
     const mockData: QuotaData = {
         subscription: { limit: 1000, requests: 500, renewsAt: new Date(Date.now() + 3600000).toISOString() },
         search: { hourly: { limit: 100, requests: 20, renewsAt: new Date().toISOString() } },
-        toolCallDiscounts: { limit: 500, requests: 100, renewsAt: new Date().toISOString() }
+        freeToolCalls: { limit: 500, requests: 100, renewsAt: new Date().toISOString() }
     };
 
     beforeEach(() => {

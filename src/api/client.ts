@@ -80,11 +80,11 @@ export class QuotaClient {
       return false;
     }
 
-    // Check toolCallDiscounts
-    if (!d.toolCallDiscounts || typeof d.toolCallDiscounts !== 'object') {
+    // Check freeToolCalls
+    if (!d.freeToolCalls || typeof d.freeToolCalls !== 'object') {
       return false;
     }
-    const tool = d.toolCallDiscounts as Record<string, unknown>;
+    const tool = d.freeToolCalls as Record<string, unknown>;
     if (
       typeof tool.limit !== 'number' ||
       typeof tool.requests !== 'number' ||

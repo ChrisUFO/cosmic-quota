@@ -63,7 +63,7 @@ export class QuotaWebview {
     };
 
     const subPercent = (data.subscription.requests / data.subscription.limit) * 100;
-    const toolPercent = (data.toolCallDiscounts.requests / data.toolCallDiscounts.limit) * 100;
+    const toolPercent = (data.freeToolCalls.requests / data.freeToolCalls.limit) * 100;
     const searchPercent = (data.search.hourly.requests / data.search.hourly.limit) * 100;
 
     return `<!DOCTYPE html>
@@ -131,7 +131,7 @@ export class QuotaWebview {
 
         <div class="card" style="--status-color: ${getStatusColor(toolPercent)}">
             <div class="card-header">
-                <div class="card-title">Tool Calls</div>
+                <div class="card-title">Free Tool Calls</div>
             </div>
             <div class="usage-value">
                 <span class="animate-number" data-target="${toolPercent}" data-decimals="1">0</span><span>%</span>
@@ -140,8 +140,8 @@ export class QuotaWebview {
                 <div class="progress-bar" data-width="${Math.min(toolPercent, 100)}"></div>
             </div>
             <div class="stats-row">
-                <span>${data.toolCallDiscounts.requests}/${data.toolCallDiscounts.limit}</span>
-                <span>${data.toolCallDiscounts.limit - data.toolCallDiscounts.requests} remaining</span>
+                <span>${data.freeToolCalls.requests}/${data.freeToolCalls.limit}</span>
+                <span>${data.freeToolCalls.limit - data.freeToolCalls.requests} remaining</span>
             </div>
         </div>
 

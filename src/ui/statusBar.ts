@@ -69,7 +69,7 @@ export class StatusBarManager {
         );
         break;
       case 'toolCalls':
-        this.updateForQuota('toolCalls', data.toolCallDiscounts, sessionUsage.toolCalls, config);
+        this.updateForQuota('toolCalls', data.freeToolCalls, sessionUsage.toolCalls, config);
         break;
       case 'search':
         this.updateForQuota('search', data.search.hourly, sessionUsage.search, config);
@@ -142,7 +142,7 @@ export class StatusBarManager {
     analytics: QuotaAnalytics
   ) {
     const subPercent = (data.subscription.requests / data.subscription.limit) * 100;
-    const toolPercent = (data.toolCallDiscounts.requests / data.toolCallDiscounts.limit) * 100;
+    const toolPercent = (data.freeToolCalls.requests / data.freeToolCalls.limit) * 100;
     const searchPercent = (data.search.hourly.requests / data.search.hourly.limit) * 100;
 
     let text = `$(dashboard) S:${subPercent.toFixed(0)}% T:${toolPercent.toFixed(0)}% H:${searchPercent.toFixed(0)}%`;
@@ -166,7 +166,7 @@ export class StatusBarManager {
     config: { warningThreshold: number; criticalThreshold: number }
   ) {
     const subPercent = (data.subscription.requests / data.subscription.limit) * 100;
-    const toolPercent = (data.toolCallDiscounts.requests / data.toolCallDiscounts.limit) * 100;
+    const toolPercent = (data.freeToolCalls.requests / data.freeToolCalls.limit) * 100;
     const searchPercent = (data.search.hourly.requests / data.search.hourly.limit) * 100;
     const avgPercent = (subPercent + toolPercent + searchPercent) / 3;
 
@@ -263,7 +263,11 @@ export class StatusBarManager {
     const remaining = quota.limit - quota.requests;
     const renewsAt = new Date(quota.renewsAt).toLocaleTimeString();
     const displayName =
-      name === 'subscription' ? 'Subscription' : name === 'toolCalls' ? 'Tool Calls' : 'Search';
+      name === 'subscription'
+        ? 'Subscription'
+        : name === 'toolCalls'
+          ? 'Free Tool Calls'
+          : 'Search';
 
     md.appendMarkdown(`## 👽 Cosmic Quota: ${displayName}\n\n`);
     md.appendMarkdown(`| Metric | Value |\n| :--- | :--- |\n`);

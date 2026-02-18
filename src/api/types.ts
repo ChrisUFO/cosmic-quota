@@ -11,7 +11,7 @@ export interface QuotaData {
       renewsAt: string;
     };
   };
-  toolCallDiscounts: {
+  freeToolCalls: {
     limit: number;
     requests: number;
     renewsAt: string;

@@ -13,7 +13,7 @@ export class AnalyticsEngine {
 
     const now = Date.now();
     const subscriptionPercent = data.subscription.requests / data.subscription.limit;
-    const toolCallsPercent = data.toolCallDiscounts.requests / data.toolCallDiscounts.limit;
+    const toolCallsPercent = data.freeToolCalls.requests / data.freeToolCalls.limit;
     const searchPercent = data.search.hourly.requests / data.search.hourly.limit;
 
     this.sessionTracker = {
@@ -147,7 +147,7 @@ export class AnalyticsEngine {
     }
 
     const currentSubPercent = data.subscription.requests / data.subscription.limit;
-    const currentToolPercent = data.toolCallDiscounts.requests / data.toolCallDiscounts.limit;
+    const currentToolPercent = data.freeToolCalls.requests / data.freeToolCalls.limit;
     const currentSearchPercent = data.search.hourly.requests / data.search.hourly.limit;
 
     return {
